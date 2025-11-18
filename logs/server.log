@@ -1,19 +1,31 @@
 INFO:     Will watch for changes in these directories: ['/home/workspace']
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [289] using StatReload
-INFO:     Started server process [291]
+INFO:     Started reloader process [380] using StatReload
+INFO:     Started server process [382]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     172.20.0.1:53688 - "HEAD / HTTP/1.1" 405 Method Not Allowed
-INFO:     172.20.0.1:48106 - "GET /teachers HTTP/1.1" 200 OK
-INFO:     172.20.0.1:48090 - "GET /students HTTP/1.1" 200 OK
-INFO:     172.20.0.1:48122 - "GET /teachers HTTP/1.1" 200 OK
-INFO:     172.20.0.1:48090 - "GET /students HTTP/1.1" 200 OK
-INFO:     172.20.0.1:48116 - "GET /classes HTTP/1.1" 200 OK
-INFO:     172.20.0.1:48116 - "GET /classes HTTP/1.1" 200 OK
-INFO:     172.20.0.1:47678 - "GET /students HTTP/1.1" 200 OK
-INFO:     172.20.0.1:47680 - "GET /teachers HTTP/1.1" 200 OK
-INFO:     172.20.0.1:47682 - "GET /classes HTTP/1.1" 200 OK
-INFO:     172.20.0.1:47678 - "GET /students HTTP/1.1" 200 OK
-INFO:     172.20.0.1:47680 - "GET /teachers HTTP/1.1" 200 OK
-INFO:     172.20.0.1:47682 - "GET /classes HTTP/1.1" 200 OK
+INFO:     172.20.0.1:59118 - "HEAD / HTTP/1.1" 405 Method Not Allowed
+INFO:     172.20.0.1:60144 - "GET /students HTTP/1.1" 200 OK
+INFO:     172.20.0.1:60174 - "GET /classes HTTP/1.1" 200 OK
+INFO:     172.20.0.1:60194 - "GET /announcements HTTP/1.1" 200 OK
+INFO:     172.20.0.1:60190 - "GET /payments HTTP/1.1" 200 OK
+INFO:     172.20.0.1:60194 - "GET /students HTTP/1.1" 200 OK
+INFO:     172.20.0.1:60144 - "GET /classes HTTP/1.1" 200 OK
+INFO:     172.20.0.1:60174 - "GET /announcements HTTP/1.1" 200 OK
+INFO:     172.20.0.1:60186 - "GET /invoices HTTP/1.1" 200 OK
+INFO:     172.20.0.1:60190 - "GET /payments HTTP/1.1" 200 OK
+INFO:     172.20.0.1:60160 - "GET /teachers HTTP/1.1" 200 OK
+INFO:     172.20.0.1:60186 - "GET /invoices HTTP/1.1" 200 OK
+INFO:     172.20.0.1:60174 - "GET /teachers HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51534 - "GET /students HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51542 - "GET /teachers HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51558 - "GET /payments HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51560 - "GET /announcements HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51544 - "GET /invoices HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51552 - "GET /classes HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51534 - "GET /students HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51542 - "GET /teachers HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51558 - "GET /payments HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51560 - "GET /announcements HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51544 - "GET /invoices HTTP/1.1" 200 OK
+INFO:     172.20.0.1:51552 - "GET /classes HTTP/1.1" 200 OK

@@ -3,11 +3,11 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
-from datetime import date
+from datetime import date, datetime
 from database import create_document, get_documents
 from bson import ObjectId
 
-app = FastAPI(title="School ERP API", version="1.1.0")
+app = FastAPI(title="School ERP API", version="1.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,7 +19,7 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"name": "School ERP Backend", "version": "1.1.0"}
+    return {"name": "School ERP Backend", "version": "1.2.0"}
 
 @app.get("/test")
 def test_database():
@@ -125,7 +125,7 @@ class ClassUpdate(BaseModel):
     year: Optional[int] = None
     class_teacher_id: Optional[str] = None
 
-# Finance
+# Finance - Invoices
 class InvoiceCreate(BaseModel):
     student_id: str
     invoice_number: str
@@ -140,6 +140,52 @@ class InvoiceUpdate(BaseModel):
     due_date: Optional[date] = None
     amount: Optional[float] = None
     status: Optional[str] = None
+
+# Finance - Payments
+class PaymentCreate(BaseModel):
+    student_id: str
+    invoice_id: str
+    amount: float
+    date: date
+    method: str
+    reference: Optional[str] = None
+
+class PaymentUpdate(BaseModel):
+    student_id: Optional[str] = None
+    invoice_id: Optional[str] = None
+    amount: Optional[float] = None
+    date: Optional[date] = None
+    method: Optional[str] = None
+    reference: Optional[str] = None
+
+# Communication - Announcements
+class AnnouncementCreate(BaseModel):
+    title: str
+    body: str
+    audience: Optional[str] = "all"  # all, students, teachers, class:<id>
+    published_at: Optional[datetime] = None
+    author_id: Optional[str] = None
+    pinned: Optional[bool] = False
+
+class AnnouncementUpdate(BaseModel):
+    title: Optional[str] = None
+    body: Optional[str] = None
+    audience: Optional[str] = None
+    published_at: Optional[datetime] = None
+    author_id: Optional[str] = None
+    pinned: Optional[bool] = None
+
+# ----------------------------- Helpers -----------------------------
+
+def compute_invoice_payment_totals(db, invoice_id: ObjectId) -> Dict[str, Any]:
+    total_paid = 0.0
+    try:
+        payments = db["payment"].find({"invoice_id": str(invoice_id)})
+        for p in payments:
+            total_paid += float(p.get("amount", 0))
+    except Exception:
+        total_paid = 0.0
+    return {"paid": total_paid}
 
 # ----------------------------- CRUD: Students -----------------------------
 
@@ -296,17 +342,28 @@ def list_invoices(limit: int = 50, q: Optional[str] = None, page: Optional[int] 
     query = build_search_query(q, fields)
     cursor = db["feeinvoice"].find(query).sort("created_at", -1)
 
+    def enrich(inv):
+        inv = dict(inv)
+        totals = compute_invoice_payment_totals(db, inv["_id"]) if inv else {"paid": 0.0}
+        paid = float(totals.get("paid", 0.0))
+        amount = float(inv.get("amount", 0.0))
+        balance = max(0.0, amount - paid)
+        inv["paid"] = paid
+        inv["balance"] = balance
+        return inv
+
     if page and page_size:
         total = cursor.count() if hasattr(cursor, 'count') else db["feeinvoice"].count_documents(query)
         skip = (page - 1) * page_size
-        items = list(cursor.skip(skip).limit(page_size))
+        items = [enrich(x) for x in list(cursor.skip(skip).limit(page_size))]
         return {"items": serialize_many(items), "total": int(total)}
 
-    items = list(cursor.limit(limit))
+    items = [enrich(x) for x in list(cursor.limit(limit))]
     return serialize_many(items)
 
 @app.post("/invoices", response_model=CreateResult)
 def create_invoice(payload: InvoiceCreate):
+    from database import db
     data = payload.model_dump(exclude_none=True)
     data.setdefault("status", "unpaid")
     new_id = create_document("feeinvoice", data)
@@ -318,7 +375,16 @@ def get_invoice(id: str):
     doc = db["feeinvoice"].find_one({"_id": to_object_id(id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    return serialize(doc)
+    inv = serialize(doc)
+    # include payments and balance
+    payments = list(db["payment"].find({"invoice_id": id}).sort("date", -1))
+    total_paid = 0.0
+    for p in payments:
+        total_paid += float(p.get("amount", 0))
+    inv["paid"] = total_paid
+    inv["balance"] = max(0.0, float(inv.get("amount", 0)) - total_paid)
+    inv["payments"] = serialize_many(payments)
+    return inv
 
 @app.put("/invoices/{id}")
 def update_invoice(id: str, payload: InvoiceUpdate):
@@ -335,6 +401,185 @@ def delete_invoice(id: str):
     res = db["feeinvoice"].delete_one({"_id": to_object_id(id)})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    return {"deleted": True}
+
+# ----------------------------- Finance: Payments -----------------------------
+
+@app.get("/payments")
+def list_payments(limit: int = 50,
+                 q: Optional[str] = None,
+                 page: Optional[int] = None,
+                 page_size: Optional[int] = None,
+                 student_id: Optional[str] = None,
+                 invoice_id: Optional[str] = None,
+                 start_date: Optional[date] = Query(None, description="YYYY-MM-DD"),
+                 end_date: Optional[date] = Query(None, description="YYYY-MM-DD")):
+    from database import db
+    fields = ["method", "reference", "student_id", "invoice_id"]
+    query = build_search_query(q, fields)
+    if student_id:
+        query["student_id"] = student_id
+    if invoice_id:
+        query["invoice_id"] = invoice_id
+    if start_date or end_date:
+        date_filter: Dict[str, Any] = {}
+        if start_date:
+            date_filter["$gte"] = start_date
+        if end_date:
+            date_filter["$lte"] = end_date
+        query["date"] = date_filter
+
+    cursor = db["payment"].find(query).sort("date", -1)
+
+    if page and page_size:
+        total = cursor.count() if hasattr(cursor, 'count') else db["payment"].count_documents(query)
+        skip = (page - 1) * page_size
+        items = list(cursor.skip(skip).limit(page_size))
+        return {"items": serialize_many(items), "total": int(total)}
+
+    items = list(cursor.limit(limit))
+    return serialize_many(items)
+
+@app.post("/payments", response_model=CreateResult)
+def create_payment(payload: PaymentCreate):
+    from database import db
+    data = payload.model_dump(exclude_none=True)
+    new_id = create_document("payment", data)
+
+    # After creating payment, update invoice status
+    inv = db["feeinvoice"].find_one({"_id": to_object_id(data["invoice_id"])}) if ObjectId.is_valid(data.get("invoice_id", "")) else None
+    if inv:
+        totals = compute_invoice_payment_totals(db, inv["_id"])
+        paid = float(totals.get("paid", 0.0))
+        amount = float(inv.get("amount", 0.0))
+        status = "paid" if paid >= amount else ("partial" if paid > 0 else "unpaid")
+        db["feeinvoice"].update_one({"_id": inv["_id"]}, {"$set": {"status": status}})
+
+    return {"id": new_id}
+
+@app.get("/payments/{id}")
+def get_payment(id: str):
+    from database import db
+    doc = db["payment"].find_one({"_id": to_object_id(id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    return serialize(doc)
+
+@app.put("/payments/{id}")
+def update_payment(id: str, payload: PaymentUpdate):
+    from database import db
+    data = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
+    res = db["payment"].update_one({"_id": to_object_id(id)}, {"$set": data})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    # If invoice_id or amount changed, recalc invoice status
+    target_invoice_id = data.get("invoice_id")
+    if not target_invoice_id:
+        # fetch existing payment to get invoice id
+        p = db["payment"].find_one({"_id": to_object_id(id)})
+        target_invoice_id = p.get("invoice_id") if p else None
+    if target_invoice_id and ObjectId.is_valid(target_invoice_id):
+        inv = db["feeinvoice"].find_one({"_id": to_object_id(target_invoice_id)})
+        if inv:
+            totals = compute_invoice_payment_totals(db, inv["_id"])
+            paid = float(totals.get("paid", 0.0))
+            amount = float(inv.get("amount", 0.0))
+            status = "paid" if paid >= amount else ("partial" if paid > 0 else "unpaid")
+            db["feeinvoice"].update_one({"_id": inv["_id"]}, {"$set": {"status": status}})
+
+    return {"updated": True}
+
+@app.delete("/payments/{id}")
+def delete_payment(id: str):
+    from database import db
+    # need invoice id before deleting
+    p = db["payment"].find_one({"_id": to_object_id(id)})
+    res = db["payment"].delete_one({"_id": to_object_id(id)})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    # recalc invoice status
+    if p:
+        inv_id = p.get("invoice_id")
+        if inv_id and ObjectId.is_valid(inv_id):
+            inv = db["feeinvoice"].find_one({"_id": to_object_id(inv_id)})
+            if inv:
+                totals = compute_invoice_payment_totals(db, inv["_id"])
+                paid = float(totals.get("paid", 0.0))
+                amount = float(inv.get("amount", 0.0))
+                status = "paid" if paid >= amount else ("partial" if paid > 0 else "unpaid")
+                db["feeinvoice"].update_one({"_id": inv["_id"]}, {"$set": {"status": status}})
+    return {"deleted": True}
+
+# ----------------------------- Communication: Announcements -----------------------------
+
+@app.get("/announcements")
+def list_announcements(limit: int = 50,
+                       q: Optional[str] = None,
+                       page: Optional[int] = None,
+                       page_size: Optional[int] = None,
+                       audience: Optional[str] = None,
+                       pinned: Optional[bool] = None,
+                       start: Optional[datetime] = None,
+                       end: Optional[datetime] = None):
+    from database import db
+    fields = ["title", "body", "audience", "author_id"]
+    query = build_search_query(q, fields)
+    if audience:
+        query["audience"] = audience
+    if pinned is not None:
+        query["pinned"] = pinned
+    if start or end:
+        dt: Dict[str, Any] = {}
+        if start:
+            dt["$gte"] = start
+        if end:
+            dt["$lte"] = end
+        query["published_at"] = dt
+
+    cursor = db["announcement"].find(query).sort([("pinned", -1), ("published_at", -1), ("created_at", -1)])
+
+    if page and page_size:
+        total = cursor.count() if hasattr(cursor, 'count') else db["announcement"].count_documents(query)
+        skip = (page - 1) * page_size
+        items = list(cursor.skip(skip).limit(page_size))
+        return {"items": serialize_many(items), "total": int(total)}
+
+    items = list(cursor.limit(limit))
+    return serialize_many(items)
+
+@app.post("/announcements", response_model=CreateResult)
+def create_announcement(payload: AnnouncementCreate):
+    data = payload.model_dump(exclude_none=True)
+    data.setdefault("pinned", False)
+    if not data.get("published_at"):
+        data["published_at"] = datetime.utcnow()
+    new_id = create_document("announcement", data)
+    return {"id": new_id}
+
+@app.get("/announcements/{id}")
+def get_announcement(id: str):
+    from database import db
+    doc = db["announcement"].find_one({"_id": to_object_id(id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    return serialize(doc)
+
+@app.put("/announcements/{id}")
+def update_announcement(id: str, payload: AnnouncementUpdate):
+    from database import db
+    data = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
+    res = db["announcement"].update_one({"_id": to_object_id(id)}, {"$set": data})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    return {"updated": True}
+
+@app.delete("/announcements/{id}")
+def delete_announcement(id: str):
+    from database import db
+    res = db["announcement"].delete_one({"_id": to_object_id(id)})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Announcement not found")
     return {"deleted": True}
 
 if __name__ == "__main__":

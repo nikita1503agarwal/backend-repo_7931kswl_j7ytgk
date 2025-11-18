@@ -1,19 +1,19 @@
 INFO:     Will watch for changes in these directories: ['/home/workspace']
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [152] using StatReload
-INFO:     Started server process [154]
+INFO:     Started reloader process [205] using StatReload
+INFO:     Started server process [207]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     172.20.0.1:60534 - "HEAD / HTTP/1.1" 405 Method Not Allowed
-INFO:     172.20.0.1:59802 - "GET /teachers HTTP/1.1" 200 OK
-INFO:     172.20.0.1:59798 - "GET /classes HTTP/1.1" 200 OK
-INFO:     172.20.0.1:59822 - "GET /teachers HTTP/1.1" 200 OK
-INFO:     172.20.0.1:59802 - "GET /classes HTTP/1.1" 200 OK
-INFO:     172.20.0.1:59810 - "GET /students HTTP/1.1" 200 OK
-INFO:     172.20.0.1:59810 - "GET /students HTTP/1.1" 200 OK
-INFO:     172.20.0.1:59836 - "GET /students HTTP/1.1" 200 OK
-INFO:     172.20.0.1:59836 - "GET /teachers HTTP/1.1" 200 OK
-INFO:     172.20.0.1:44836 - "GET /classes HTTP/1.1" 200 OK
-INFO:     172.20.0.1:44852 - "GET /students HTTP/1.1" 200 OK
-INFO:     172.20.0.1:59836 - "GET /teachers HTTP/1.1" 200 OK
-INFO:     172.20.0.1:44836 - "GET /classes HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49948 - "HEAD / HTTP/1.1" 405 Method Not Allowed
+INFO:     172.20.0.1:49950 - "GET /students HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49978 - "GET /classes HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49980 - "GET /students HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49978 - "GET /classes HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49964 - "GET /teachers HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49978 - "GET /teachers HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49978 - "GET /students HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49980 - "GET /classes HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49964 - "GET /teachers HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49978 - "GET /students HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49950 - "GET /classes HTTP/1.1" 200 OK
+INFO:     172.20.0.1:49980 - "GET /teachers HTTP/1.1" 200 OK
